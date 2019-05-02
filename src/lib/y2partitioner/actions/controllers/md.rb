@@ -24,6 +24,7 @@ require "y2storage"
 require "y2partitioner/device_graphs"
 require "y2partitioner/ui_state"
 require "y2partitioner/blk_device_restorer"
+require "y2partitioner/actions/controllers/available_devices"
 
 module Y2Partitioner
   module Actions
@@ -33,6 +34,9 @@ module Y2Partitioner
       # dialogs can always work directly on a real Md object in the devicegraph.
       class Md
         include Yast::I18n
+
+        include AvailableDevices
+
         extend Forwardable
 
         def_delegators :md, :md_level, :md_level=, :md_name,
@@ -68,9 +72,9 @@ module Y2Partitioner
         #
         # @return [Array<Y2Storage::BlkDevice>]
         def available_devices
-          # StrayBlkDevice not offered. They are used for very concrete
-          # use cases in which RAID makes probably no sense.
-          (available_disks + available_partitions).sort { |a, b| a.compare_by_name(b) }
+          devices = super(working_graph) { |d| valid_device?(d) }
+
+          devices.sort { |a, b| a.compare_by_name(b) }
         end
 
         # Partitions that are already part of the MD array, sorted by position
@@ -258,21 +262,6 @@ module Y2Partitioner
           md
         end
 
-        # Partitions to be offered as "Available Devices" in the UI
-        #
-        # @return [Array<Y2Storage::Partition]
-        def available_partitions
-          working_graph.partitions.select { |d| valid_for_md?(d) && available?(d) }
-        end
-
-        # Disk-like devices to be offered as "Available Devices" in the UI
-        #
-        # @return [Array<Y2Storage::BlkDevice]
-        def available_disks
-          disks = working_graph.disk_devices.select { |i| i.is?(:disk, :multipath) }
-          disks.select { |d| d.partitions.empty? && available?(d) }
-        end
-
         # Whether the partition is valid to be used in a MD RAID
         #
         # @note An available partition (see {#available?}) is valid to be used
@@ -285,11 +274,7 @@ module Y2Partitioner
         #
         # @param partition [Y2Storage::Partition]
         # @return [Boolean] true if it is valid; false otherwise.
-        def valid_for_md?(partition)
-          partition.id.is?(:linux_system) &&
-            !partition.type.is?(:extended) &&
-            !partition.partitionable.is?(:raid)
-        end
+
 
         # Whether the device is available to be used in a MD RAID
         #
@@ -301,10 +286,22 @@ module Y2Partitioner
         #
         # @param device [Y2Storage::BlkDevice]
         # @return [Boolean] true if can be used for a MD RAID; false otherwise.
-        def available?(device)
-          return false unless device.component_of.empty?
+        def valid_device?(device)
+          if device.is?(:partition)
+            valid_partition_for_md?(device)
+          else
+            valid_device_for_md?(device)
+          end
+        end
 
-          device.filesystem.nil? || device.filesystem.mount_point.nil?
+        def valid_partition_for_md?(partition)
+          partition.id.is?(:linux_system) && !partition.partitionable.is?(:raid)
+        end
+
+        def valid_device_for_md?(device)
+          # StrayBlkDevice not offered. They are used for very concrete
+          # use cases in which RAID makes probably no sense.
+          !device.is?(:dasd, :bios_raid, :md, :bcache, :stray, :lvm_lv)
         end
 
         def min_chunk_size

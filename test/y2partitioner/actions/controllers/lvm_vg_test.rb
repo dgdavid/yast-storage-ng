@@ -378,8 +378,8 @@ describe Y2Partitioner::Actions::Controllers::LvmVg do
     end
 
     it "excludes zero-size devices" do
-      Y2Storage::Disk.create(current_graph, "/dev/sde", 0)
-      expect(controller.available_devices.map(&:name)).to_not include("/dev/sde")
+      Y2Storage::Disk.create(current_graph, "/dev/sdh", 0)
+      expect(controller.available_devices.map(&:name)).to_not include("/dev/sdh")
     end
 
     it "includes partitions with a linux system ID (linux, LVM, RAID, swap)" do

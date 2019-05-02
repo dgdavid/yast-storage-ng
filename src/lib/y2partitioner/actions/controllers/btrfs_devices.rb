@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-# Copyright (c) [2017] SUSE LLC
+# Copyright (c) [2018] SUSE LLC
 #
 # All Rights Reserved.
 #
@@ -25,37 +25,17 @@ require "y2partitioner/device_graphs"
 require "y2partitioner/size_parser"
 require "y2partitioner/ui_state"
 require "y2partitioner/blk_device_restorer"
-require "y2partitioner/actions/controllers/available_devices"
 
 module Y2Partitioner
   module Actions
     module Controllers
       # This class stores information about an LVM volume group being created or
       # modified and takes care of updating the devicegraph when needed.
-      class LvmVg
+      class BtrfsDevices
         include Yast::I18n
-
-        include SizeParser
-
-        include AvailableDevices
 
         # @return [String] given volume group name
         attr_accessor :vg_name
-
-        # @return [Y2Storage::DiskSize] given extent size
-        attr_reader :extent_size
-
-        # @return [Y2Storage::LvmVg] volume group to work over
-        attr_reader :vg
-
-        DEFAULT_VG_NAME = "".freeze
-        DEFAULT_EXTENT_SIZE = Y2Storage::DiskSize.MiB(4).freeze
-
-        ALLOWED_NAME_CHARS =
-          "0123456789" \
-          "abcdefghijklmnopqrstuvwxyz" \
-          "ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
-          "._-+".freeze
 
         # Constructor
         #
@@ -65,7 +45,7 @@ module Y2Partitioner
         # @see #initialize_action
         #
         # @param vg [Y2Storage::LvmVg] a volume group to be modified
-        def initialize(vg: nil)
+        def initialize(filesystem: nil)
           textdomain "storage"
 
           initialize_action(vg)
@@ -88,60 +68,6 @@ module Y2Partitioner
           end
         end
 
-        # Stores the given extent size
-        # @note The value is internally stored as DiskSize when it can be parsed;
-        #   nil otherwise.
-        #
-        # @param value [String]
-        def extent_size=(value)
-          @extent_size = parse_user_size(value)
-        end
-
-        # Effective size of the resulting LVM volume group
-        #
-        # @return [Y2Storage::DiskSize]
-        def vg_size
-          vg.size
-        end
-
-        # Size of the logical volumes belonging to the current volume group
-        #
-        # @return [Y2Storage::DiskSize]
-        def lvs_size
-          Y2Storage::DiskSize.sum(vg.lvm_lvs.map(&:size))
-        end
-
-        # Applies given values (i.e., volume group name and extent size) to the
-        # volume group
-        def apply_values
-          vg.vg_name = vg_name
-          vg.extent_size = extent_size
-        end
-
-        # Error messages for the volume group name
-        #
-        # @note When there is no error, an empty list is returned.
-        #
-        # @return [Array<String>] list of errors
-        def vg_name_errors
-          errors = []
-          errors << empty_vg_name_message if empty_vg_name?
-          errors << illegal_vg_name_message if vg_name && illegal_vg_name?
-          errors << duplicated_vg_name_message if vg_name && duplicated_vg_name?
-          errors
-        end
-
-        # Error messages for the extent size
-        #
-        # @note When there is no error, an empty list is returned.
-        #
-        # @return [Array<String>] list of errors
-        def extent_size_errors
-          errors = []
-          errors << invalid_extent_size_message if invalid_extent_size?
-          errors
-        end
-
         # Devices that can be selected to become physical volume of a volume group
         #
         # @note A physical volume could be created using a partition, disk, multipath,
@@ -149,7 +75,14 @@ module Y2Partitioner
         #
         # @return [Array<Y2Storage::BlkDevice>]
         def available_devices
-          super(working_graph) { |d| valid_device?(d) }
+          devices =
+            working_graph.disk_devices +
+            working_graph.md_raids +
+            working_graph.partitions
+
+          devices.reject! { |d| d.is?(:dasd) }
+
+          devices.select { |d| available?(d) }
         end
 
         # Devices that are already used as physical volume by the volume group
@@ -364,11 +297,11 @@ module Y2Partitioner
         # Checks whether a device is availabe to be used as physical volume
         #
         # @return [Boolean] true if the device is available; false otherwise
-        def valid_device?(device)
+        def available?(device)
           if device.is?(:partition)
-            valid_partition_for_vg?(device)
+            available_partition?(device)
           else
-            valid_device_for_vg?(device)
+            available_disk?(device)
           end
         end
 
@@ -380,8 +313,9 @@ module Y2Partitioner
         #   not mounted.
         #
         # @return [Boolean] true if the partition is available; false otherwise
-        def valid_partition_for_vg?(partition)
-          partition.id.is?(:linux_system)
+        def available_partition?(partition)
+          return false unless partition.id.is?(:linux_system)
+          can_be_used?(partition)
         end
 
         # Checks whether a device is available to be used as physical volume
@@ -391,8 +325,50 @@ module Y2Partitioner
         #   group). A device is also available when it is formated but not mounted.
         #
         # @return [Boolean] true if the device is available; false otherwise
-        def valid_device_for_vg?(device)
-          !device.is?(:dasd, :bcache, :lvm_lv)
+        def available_disk?(disk)
+          partition_table = disk.partition_table
+          partition_table ? partition_table.partitions.empty? : can_be_used?(disk)
+        end
+
+        # Checks whether a device can be used
+        #
+        # @note A device can be used when it is not formatted and it is not used by
+        #   another device (raid or volume group) or it is formatted but not mounted.
+        #
+        # @return [Boolean] true if the device can be used; false otherwise
+        def can_be_used?(device)
+          !used?(device) || (formatted?(device) && !mounted?(device))
+        end
+
+        # Checks whether a device is already used.
+        #
+        # @note A device is used when it is formatted or belongs to another
+        #   device (raid or volume group). A device is not considered as used
+        #   when it is only encrypted.
+        #
+        # @return [Boolean] true if the device is used; false otherwise
+        def used?(device)
+          descendants = device.descendants
+          return false if descendants.empty?
+          return false if descendants.size == 1 && device.encrypted?
+
+          true
+        end
+
+        # Checks whether a device has a mount point
+        #
+        # @return [Boolean] true if it is mounted; false otherwise
+        def mounted?(device)
+          return false unless formatted?(device)
+
+          !device.filesystem.mount_point.nil?
+        end
+
+        # Checks whether a device is formatted
+        #
+        # @return [Boolean] true if it is formatted; false otherwise
+        def formatted?(device)
+          !device.filesystem.nil?
         end
       end
     end
