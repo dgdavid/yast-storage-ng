@@ -392,7 +392,7 @@ module Y2Partitioner
         #
         # @return [Boolean] true if the device is available; false otherwise
         def valid_device_for_vg?(device)
-          !device.is?(:dasd, :bcache, :lvm_lv)
+          device.is?(:disk, :multipath, :bios_raid, :md)
         end
       end
     end

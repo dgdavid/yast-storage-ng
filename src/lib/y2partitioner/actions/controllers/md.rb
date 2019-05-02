@@ -301,7 +301,7 @@ module Y2Partitioner
         def valid_device_for_md?(device)
           # StrayBlkDevice not offered. They are used for very concrete
           # use cases in which RAID makes probably no sense.
-          !device.is?(:dasd, :bios_raid, :md, :bcache, :stray, :lvm_lv)
+          device.is?(:disk, :multipath)
         end
 
         def min_chunk_size
