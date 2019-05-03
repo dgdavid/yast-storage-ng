@@ -75,6 +75,16 @@ module Y2Storage
       storage_forward :configure_snapper
       storage_forward :configure_snapper=
 
+      storage_forward :data_raid_level
+      storage_forward :data_raid_level=
+
+      storage_forward :metadata_raid_level
+      storage_forward :metadata_raid_level=
+
+      storage_forward :add_device
+
+      storage_forward :remove_device
+
       # Only Btrfs should support subvolumes
       def supports_btrfs_subvolumes?
         true

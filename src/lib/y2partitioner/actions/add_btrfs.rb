@@ -22,7 +22,7 @@
 require "yast"
 require "y2partitioner/actions/transaction_wizard"
 require "y2partitioner/actions/controllers/filesystem"
-# require "y2partitioner/actions/controllers/btrfs_devices"
+require "y2partitioner/actions/controllers/btrfs_devices"
 require "y2partitioner/dialogs/btrfs_devices"
 require "y2partitioner/dialogs/btrfs_options"
 
@@ -39,12 +39,12 @@ module Y2Partitioner
 
       def devices
         result = Dialogs::BtrfsDevices.run(controller)
-        controller.apply_default_options if result == :next
-        result
+        # controller.apply_default_options if result == :next
+        # result
       end
 
       def options
-        fs_controller = Controllers::Filesystem.new(controller.filesystem)
+        fs_controller = Controllers::Filesystem.new(controller.filesystem, title)
 
         Dialogs::BtrfsOptions.run(fs_controller)
       end
@@ -65,18 +65,22 @@ module Y2Partitioner
       # @see TransactionWizard
       def init_transaction
         # The controller object must be created within the transaction
-        @controller = Controllers::BtrfsDevices.new
+        @controller = Controllers::BtrfsDevices.new(wizard_title: title)
+      end
+
+      def title
+        _("Add Btrfs")
       end
 
       # @see TransactionWizard
-      def run?
-        return true unless controller.available_devices.size < 2
+      # def run?
+      #   return true unless controller.available_devices.size < 2
 
-        Yast::Popup.Error(
-          _("There are not enough suitable unused devices to create a RAID.")
-        )
-        false
-      end
+      #   Yast::Popup.Error(
+      #     _("There are not enough suitable unused devices to create a RAID.")
+      #   )
+      #   false
+      # end
     end
   end
 end

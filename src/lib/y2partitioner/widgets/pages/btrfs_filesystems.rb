@@ -23,7 +23,7 @@ require "yast"
 require "y2partitioner/icons"
 require "y2partitioner/widgets/pages/devices_table"
 require "y2partitioner/widgets/btrfs_filesystems_table"
-# require "y2partitioner/widgets/btrfs_add_button"
+require "y2partitioner/widgets/btrfs_add_button"
 require "y2partitioner/widgets/device_buttons_set"
 require "y2storage/filesystems/type"
 
@@ -60,9 +60,9 @@ module Y2Partitioner
         end
 
         # @see DevicesTable
-        # def table_buttons
-          # BtrfsAddButton.new
-        # end
+        def table_buttons
+          BtrfsAddButton.new
+        end
 
         # @return [ConfigurableBlkDevicesTable]
         def table

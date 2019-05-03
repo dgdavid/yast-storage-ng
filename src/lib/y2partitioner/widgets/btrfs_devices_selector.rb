@@ -32,11 +32,10 @@ module Y2Partitioner
       #
       # @param controller [Actions::Controllers::LvmVg]
       def initialize(controller)
+        @controller = controller
         super()
 
         textdomain "storage"
-
-        @controller = controller
       end
 
       def help
@@ -61,7 +60,7 @@ module Y2Partitioner
 
       # @see Widgets::DevicesSelection#selected
       def selected
-        controller.btrfs_devices
+        controller.selected_devices
       end
 
       # @see Widgets::DevicesSelection#unselected
@@ -72,7 +71,7 @@ module Y2Partitioner
       # @see Widgets::DevicesSelection#select
       def select(sids)
         filter_devices(unselected, sids).each do |device|
-          controller.add_btrfs_device(device)
+          controller.add_device(device)
         end
       end
 
@@ -82,7 +81,7 @@ module Y2Partitioner
       #   see {#check_for_committed_devices}.
       def unselect(sids)
         filter_devices(selected, sids).each do |device|
-          controller.remove_btrfs_device(device)
+          controller.remove_device(device)
         end
       end
 
@@ -96,10 +95,10 @@ module Y2Partitioner
       #
       # @return [Boolean]
       def validate
-        errors = errors
-        return true if errors.none?
+        current_errors = errors
+        return true if current_errors.none?
 
-        message = errors.join("\n\n")
+        message = current_errors.join("\n\n")
         Yast::Popup.Error(message)
 
         false
@@ -120,7 +119,7 @@ module Y2Partitioner
       #
       # @return [Boolean]
       def selected_devices_error
-        return nil if controller.btrfs_devices.any?
+        return nil if controller.selected_devices.any?
 
         # TRANSLATORS: Error message when no device is selected
         _("Select at least one device.")
