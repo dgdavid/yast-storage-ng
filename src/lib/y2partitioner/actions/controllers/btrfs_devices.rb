@@ -60,17 +60,6 @@ module Y2Partitioner
           UIState.instance.select_row(filesystem) if filesystem
         end
 
-        def raid_levels
-          [
-            Y2Storage::BtrfsRaidLevel::DEFAULT,
-            Y2Storage::BtrfsRaidLevel::SINGLE,
-            Y2Storage::BtrfsRaidLevel::DUP,
-            Y2Storage::BtrfsRaidLevel::RAID0,
-            Y2Storage::BtrfsRaidLevel::RAID1,
-            Y2Storage::BtrfsRaidLevel::RAID10
-          ]
-        end
-
         def metadata_raid_level
           return @metadata_raid_level unless filesystem
 
@@ -99,6 +88,17 @@ module Y2Partitioner
           end
         end
 
+        def raid_levels
+          [
+            Y2Storage::BtrfsRaidLevel::DEFAULT,
+            Y2Storage::BtrfsRaidLevel::SINGLE,
+            Y2Storage::BtrfsRaidLevel::DUP,
+            Y2Storage::BtrfsRaidLevel::RAID0,
+            Y2Storage::BtrfsRaidLevel::RAID1,
+            Y2Storage::BtrfsRaidLevel::RAID10
+          ]
+        end
+
         # Devices that can be selected to become physical volume of a volume group
         #
         # @note A physical volume could be created using a partition, disk, multipath,
@@ -115,7 +115,7 @@ module Y2Partitioner
         def selected_devices
           return [] unless filesystem
 
-          filesystem.blk_devices
+          filesystem.plain_blk_devices
         end
 
         # Adds a device as physical volume of the volume group
@@ -144,7 +144,7 @@ module Y2Partitioner
         #
         # @param device [Y2Storage::BlkDevice]
         def remove_device(device)
-          device = device.encryption if device.encryption
+          device = device.encryption if device.encrypted?
           filesystem.remove_device(device)
           BlkDeviceRestorer.new(device.plain_device).restore_from_checkpoint
         end
