@@ -49,7 +49,7 @@ module Y2Partitioner
 
       # @macro seeAbstractWidget
       def opt
-        %i(hstretch notify)
+        [:notify]
       end
 
       def items
@@ -62,8 +62,10 @@ module Y2Partitioner
       end
 
       # @macro seeAbstractWidget
-      def store
+      def handle
         @controller.data_raid_level = Y2Storage::BtrfsRaidLevel.find(value)
+
+        nil
       end
     end
   end

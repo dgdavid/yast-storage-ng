@@ -22,6 +22,7 @@
 require "yast"
 require "y2partitioner/widgets/device_button"
 require "y2partitioner/actions/edit_md_devices"
+require "y2partitioner/actions/edit_btrfs_devices"
 
 Yast.import "Popup"
 
@@ -47,9 +48,11 @@ module Y2Partitioner
       # @see DeviceButton#actions
       # @see Actions::EditMdDevices
       def actions_class
-        return nil unless device.is?(:software_raid)
-
-        Actions::EditMdDevices
+        if device.is?(:software_raid)
+          Actions::EditMdDevices
+        elsif device.is?(:btrfs)
+          Actions::EditBtrfsDevices
+        end
       end
     end
   end

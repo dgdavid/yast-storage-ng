@@ -38,9 +38,7 @@ module Y2Partitioner
       end
 
       def devices
-        result = Dialogs::BtrfsDevices.run(controller)
-        # controller.apply_default_options if result == :next
-        # result
+        Dialogs::BtrfsDevices.run(controller)
       end
 
       def options
@@ -72,15 +70,15 @@ module Y2Partitioner
         _("Add Btrfs")
       end
 
-      # @see TransactionWizard
-      # def run?
-      #   return true unless controller.available_devices.size < 2
+      #@see TransactionWizard
+      def run?
+        return true if controller.available_devices.any?
 
-      #   Yast::Popup.Error(
-      #     _("There are not enough suitable unused devices to create a RAID.")
-      #   )
-      #   false
-      # end
+        Yast::Popup.Error(
+          _("There are not enough suitable unused devices to create a Btrfs.")
+        )
+        false
+      end
     end
   end
 end

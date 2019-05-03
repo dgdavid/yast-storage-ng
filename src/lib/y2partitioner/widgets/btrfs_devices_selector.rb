@@ -85,6 +85,14 @@ module Y2Partitioner
         end
       end
 
+      def unselected_size
+        nil
+      end
+
+      def selected_size
+        nil
+      end
+
       # Validates the selected physical volumes
       # @macro seeAbstractWidget
       #
@@ -110,7 +118,11 @@ module Y2Partitioner
       attr_reader :controller
 
       def errors
-        [selected_devices_error].compact
+        [
+          selected_devices_error,
+          metadata_devices_error,
+          data_devices_error
+        ].compact
       end
 
       # Validates that at least one physical volume was added to the volume group
@@ -123,6 +135,54 @@ module Y2Partitioner
 
         # TRANSLATORS: Error message when no device is selected
         _("Select at least one device.")
+      end
+
+      def metadata_devices_error
+        raid_level_devices_error(:metadata)
+      end
+
+      def data_devices_error
+        raid_level_devices_error(:data)
+      end
+
+      def raid_level_devices_error(data)
+        return nil unless filesystem
+
+        allowed_raid_levels = allowed_raid_levels(data)
+        selected_raid_level = selected_raid_level(data)
+
+        return nil if allowed_raid_levels.include?(selected_raid_level)
+
+        format(
+          _("According to the selected devices, only the following %{data}\n" \
+            "RAID levels can be used: %{levels}."),
+          data:   data.to_s,
+          levels: allowed_raid_levels.map(&:to_human_string).join(", ")
+        )
+      end
+
+      def allowed_raid_levels(data)
+        raid_levels = [Y2Storage::BtrfsRaidLevel::DEFAULT]
+
+        if data == :metadata
+          raid_levels += filesystem.allowed_metadata_raid_levels
+        else
+          raid_levels += filesystem.allowed_data_raid_levels
+        end
+
+        raid_levels - [Y2Storage::BtrfsRaidLevel::RAID5, Y2Storage::BtrfsRaidLevel::RAID6]
+      end
+
+      def selected_raid_level(data)
+        if data == :metadata
+          controller.metadata_raid_level
+        else
+          controller.data_raid_level
+        end
+      end
+
+      def filesystem
+        controller.filesystem
       end
 
       def filter_devices(devices, sids)

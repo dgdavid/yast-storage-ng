@@ -168,6 +168,8 @@ module Y2Partitioner
           filesystem.metadata_raid_level = @metadata_raid_level
           filesystem.data_raid_level = @data_raid_level
 
+          UIState.instance.select_row(filesystem)
+
           @filesystem = filesystem
         end
 
