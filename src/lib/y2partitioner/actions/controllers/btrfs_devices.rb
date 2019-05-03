@@ -51,11 +51,11 @@ module Y2Partitioner
         def initialize(filesystem: nil, wizard_title: "")
           textdomain "storage"
 
+          @filesystem = filesystem
           @wizard_title = wizard_title
+
           @metadata_raid_level = Y2Storage::BtrfsRaidLevel::DEFAULT
           @data_raid_level = Y2Storage::BtrfsRaidLevel::DEFAULT
-
-          @filesystem = filesystem
 
           UIState.instance.select_row(filesystem) if filesystem
         end
@@ -97,6 +97,22 @@ module Y2Partitioner
             Y2Storage::BtrfsRaidLevel::RAID1,
             Y2Storage::BtrfsRaidLevel::RAID10
           ]
+        end
+
+        def allowed_raid_levels(data)
+          raid_levels = [Y2Storage::BtrfsRaidLevel::DEFAULT]
+
+          if data == :metadata
+            raid_levels += filesystem.allowed_metadata_raid_levels
+          else
+            raid_levels += filesystem.allowed_data_raid_levels
+          end
+
+          raid_levels - forbidden_raid_levels
+        end
+
+        def forbidden_raid_levels
+          [Y2Storage::BtrfsRaidLevel::RAID5, Y2Storage::BtrfsRaidLevel::RAID6]
         end
 
         # Devices that can be selected to become physical volume of a volume group
@@ -172,23 +188,6 @@ module Y2Partitioner
 
           @filesystem = filesystem
         end
-
-        # # Probed version of the current volume group
-        # #
-        # # @note It returns nil if the volume group does not exist in probed devicegraph.
-        # #
-        # # @return [Y2Storage::LvmVg, nil]
-        # def probed_vg
-        #   system = Y2Partitioner::DeviceGraphs.instance.system
-        #   system.find_device(vg.sid)
-        # end
-
-        # # Whether the current volume group exists in the probed devicegraph
-        # #
-        # # @return [Boolean] true if the volume group exists in probed; false otherwise.
-        # def probed_vg?
-        #   !probed_vg.nil?
-        # end
       end
     end
   end

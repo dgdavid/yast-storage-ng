@@ -162,23 +162,11 @@ module Y2Partitioner
       end
 
       def allowed_raid_levels(data)
-        raid_levels = [Y2Storage::BtrfsRaidLevel::DEFAULT]
-
-        if data == :metadata
-          raid_levels += filesystem.allowed_metadata_raid_levels
-        else
-          raid_levels += filesystem.allowed_data_raid_levels
-        end
-
-        raid_levels - [Y2Storage::BtrfsRaidLevel::RAID5, Y2Storage::BtrfsRaidLevel::RAID6]
+        controller.allowed_raid_levels(data)
       end
 
       def selected_raid_level(data)
-        if data == :metadata
-          controller.metadata_raid_level
-        else
-          controller.data_raid_level
-        end
+        controller.send("#{data}_raid_level")
       end
 
       def filesystem
