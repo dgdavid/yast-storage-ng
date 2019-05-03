@@ -36,11 +36,6 @@ module Y2Partitioner
 
         include AvailableDevices
 
-        # @return [String] given volume group name
-        attr_accessor :data_raid_level
-
-        attr_accessor :metadata_raid_level
-
         attr_reader :filesystem
 
         attr_reader :wizard_title
@@ -57,15 +52,51 @@ module Y2Partitioner
           textdomain "storage"
 
           @wizard_title = wizard_title
+          @metadata_raid_level = Y2Storage::BtrfsRaidLevel::DEFAULT
+          @data_raid_level = Y2Storage::BtrfsRaidLevel::DEFAULT
 
+          @filesystem = filesystem
+
+          UIState.instance.select_row(filesystem) if filesystem
+        end
+
+        def raid_levels
+          [
+            Y2Storage::BtrfsRaidLevel::DEFAULT,
+            Y2Storage::BtrfsRaidLevel::SINGLE,
+            Y2Storage::BtrfsRaidLevel::DUP,
+            Y2Storage::BtrfsRaidLevel::RAID0,
+            Y2Storage::BtrfsRaidLevel::RAID1,
+            Y2Storage::BtrfsRaidLevel::RAID10
+          ]
+        end
+
+        def metadata_raid_level
+          return @metadata_raid_level unless filesystem
+
+          filesystem.metadata_raid_level
+        end
+
+        def metadata_raid_level=(value)
           if filesystem
-            @filesystem = filesystem
-            @data_raid_level = filesystem.data_raid_level
-            @metadata_raid_level = filesystem.metadata_raid_level
-
-            UIState.instance.select_row(filesystem)
+            filesystem.metadata_raid_level = value
+          else
+            @metadata_raid_level = value
           end
+        end
 
+        def data_raid_level
+          return @data_raid_level unless filesystem
+
+          filesystem.data_raid_level
+        end
+
+        def data_raid_level=(value)
+          if filesystem
+            filesystem.data_raid_level = value
+          else
+            @data_raid_level = value
+          end
         end
 
         # Devices that can be selected to become physical volume of a volume group
@@ -125,11 +156,19 @@ module Y2Partitioner
         end
 
         def valid_device?(device)
-          !device.is?(:encryption)
+          !device.is?(:encryption) && !selected_device?(device)
+        end
+
+        def selected_device?(device)
+          selected_devices.include?(device)
         end
 
         def create_filesystem(device)
-          @filesystem = device.create_filesystem(Y2Storage::Filesystems::Type::BTRFS)
+          filesystem = device.create_filesystem(Y2Storage::Filesystems::Type::BTRFS)
+          filesystem.metadata_raid_level = @metadata_raid_level
+          filesystem.data_raid_level = @data_raid_level
+
+          @filesystem = filesystem
         end
 
         # # Probed version of the current volume group

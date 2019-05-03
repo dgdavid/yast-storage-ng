@@ -22,6 +22,7 @@
 require "y2storage/storage_class_wrapper"
 require "y2storage/filesystems/blk_filesystem"
 require "y2storage/btrfs_subvolume"
+require "y2storage/btrfs_raid_level"
 require "y2storage/subvol_specification"
 
 Yast.import "ProductFeatures"
@@ -75,11 +76,15 @@ module Y2Storage
       storage_forward :configure_snapper
       storage_forward :configure_snapper=
 
-      storage_forward :data_raid_level
+      storage_forward :data_raid_level, as: "BtrfsRaidLevel"
       storage_forward :data_raid_level=
 
-      storage_forward :metadata_raid_level
+      storage_forward :metadata_raid_level, as: "BtrfsRaidLevel"
       storage_forward :metadata_raid_level=
+
+      storage_forward :allowed_data_raid_levels, as: "BtrfsRaidLevel"
+
+      storage_forward :allowed_metadata_raid_levels, as: "BtrfsRaidLevel"
 
       storage_forward :add_device
 

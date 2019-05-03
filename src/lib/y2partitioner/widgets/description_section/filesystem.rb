@@ -47,7 +47,13 @@ module Y2Partitioner
 
         # @see DescriptionSection::Base#entries
         def entries
-          [:fs_type, :mount_point, :mount_by, :label, :uuid]
+          [:fs_type, :mount_point, :mount_by, :label, :uuid] + btrfs_entries
+        end
+
+        def btrfs_entries
+          return [] unless filesystem && filesystem.is?(:btrfs)
+
+          [:metadata_raid_level, :data_raid_level]
         end
 
         # Information about the filesystem type
@@ -122,6 +128,28 @@ module Y2Partitioner
           return "" unless filesystem && filesystem.mount_point
 
           filesystem.mount_point.mount_by.to_human_string
+        end
+
+        # Information about the filesystem type
+        #
+        # @return [String]
+        def metadata_raid_level_value
+          level = filesystem.metadata_raid_level.to_human_string
+
+          # TRANSLATORS: Filesystem type information, where %s is replaced by
+          # a filesystem type (e.g., VFAT, BTRFS)
+          format(_("Metadata RAID Level: %s"), level)
+        end
+
+        # Information about the filesystem type
+        #
+        # @return [String]
+        def data_raid_level_value
+          level = filesystem.data_raid_level.to_human_string
+
+          # TRANSLATORS: Filesystem type information, where %s is replaced by
+          # a filesystem type (e.g., VFAT, BTRFS)
+          format(_("Data RAID Level: %s"), level)
         end
       end
     end
