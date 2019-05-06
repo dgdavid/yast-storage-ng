@@ -40,11 +40,10 @@ module Y2Partitioner
       end
 
       def help
-        _("<p><b>Parity Algorithm:</b> " \
-          "The parity algorithm to use with RAID 5/6. " \
-          "Left-symmetric is the one that offers maximum performance " \
-          "on typical disks with rotating platters." \
-          "</p>")
+        format(
+          _("<p><b>%{label}:</b> RAID level for the Btrfs metadata.</p>"),
+          label: label
+        )
       end
 
       # @macro seeAbstractWidget

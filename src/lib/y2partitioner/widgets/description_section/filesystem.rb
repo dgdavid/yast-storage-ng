@@ -53,7 +53,7 @@ module Y2Partitioner
         def btrfs_entries
           return [] unless filesystem && filesystem.is?(:btrfs)
 
-          [:metadata_raid_level, :data_raid_level]
+          [:btrfs_metadata_raid_level, :btrfs_data_raid_level]
         end
 
         # Information about the filesystem type
@@ -133,7 +133,7 @@ module Y2Partitioner
         # Information about the filesystem type
         #
         # @return [String]
-        def metadata_raid_level_value
+        def btrfs_metadata_raid_level_value
           level = filesystem.metadata_raid_level.to_human_string
 
           # TRANSLATORS: Filesystem type information, where %s is replaced by
@@ -144,7 +144,7 @@ module Y2Partitioner
         # Information about the filesystem type
         #
         # @return [String]
-        def data_raid_level_value
+        def btrfs_data_raid_level_value
           level = filesystem.data_raid_level.to_human_string
 
           # TRANSLATORS: Filesystem type information, where %s is replaced by

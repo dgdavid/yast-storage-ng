@@ -20,6 +20,7 @@
 # find current contact information at www.suse.com.
 
 require "yast"
+require "yast2/popup"
 require "y2partitioner/widgets/devices_selection"
 
 Yast.import "Popup"
@@ -43,19 +44,17 @@ module Y2Partitioner
       end
 
       def help_for_available_devices
-        _("<p><b>Available Devices:</b> " \
-          "A list of available LVM physical volumes. " \
-          "If this list is empty, you need to create partitions " \
-          "as \"Raw Volume (unformatted)\" with partition ID \"Linux LVM\"" \
-          "in the \"Hard Disks\" view of the partitioner." \
-          "</p>")
+        format(
+          _("<p><b>%{label}</b> Unused devices that can be used for a Btrfs filesystem.</p>"),
+          label: unselected_label
+        )
       end
 
       def help_for_selected_devices
-        _("<p><b>Selected Devices:</b> " \
-          "The physical volumes to create this volume group from. " \
-          "If needed, you can always add more physical volumes later." \
-          "</p>")
+        format(
+          _("<p><b>%{label}</b> Devices selected to be part of the Btrfs.</p>"),
+          label: selected_label
+        )
       end
 
       # @see Widgets::DevicesSelection#selected
@@ -103,11 +102,10 @@ module Y2Partitioner
       #
       # @return [Boolean]
       def validate
-        current_errors = errors
-        return true if current_errors.none?
+        error = selected_devices_error
+        return true unless error
 
-        message = current_errors.join("\n\n")
-        Yast::Popup.Error(message)
+        Yast2::Popup.show(error, headline: :error, buttons: :ok)
 
         false
       end
@@ -116,14 +114,6 @@ module Y2Partitioner
 
       # @return [Actions::Controllers::LvmVg]
       attr_reader :controller
-
-      def errors
-        [
-          selected_devices_error,
-          metadata_devices_error,
-          data_devices_error
-        ].compact
-      end
 
       # Validates that at least one physical volume was added to the volume group
       #
@@ -135,42 +125,6 @@ module Y2Partitioner
 
         # TRANSLATORS: Error message when no device is selected
         _("Select at least one device.")
-      end
-
-      def metadata_devices_error
-        raid_level_devices_error(:metadata)
-      end
-
-      def data_devices_error
-        raid_level_devices_error(:data)
-      end
-
-      def raid_level_devices_error(data)
-        return nil unless filesystem
-
-        allowed_raid_levels = allowed_raid_levels(data)
-        selected_raid_level = selected_raid_level(data)
-
-        return nil if allowed_raid_levels.include?(selected_raid_level)
-
-        format(
-          _("According to the selected devices, only the following %{data}\n" \
-            "RAID levels can be used: %{levels}."),
-          data:   data.to_s,
-          levels: allowed_raid_levels.map(&:to_human_string).join(", ")
-        )
-      end
-
-      def allowed_raid_levels(data)
-        controller.allowed_raid_levels(data)
-      end
-
-      def selected_raid_level(data)
-        controller.send("#{data}_raid_level")
-      end
-
-      def filesystem
-        controller.filesystem
       end
 
       def filter_devices(devices, sids)

@@ -123,7 +123,7 @@ module Y2Storage
       #
       # @return [String]
       def blk_device_basename
-        info = blk_devices.first.basename
+        info = blk_devices.map(&:basename).sort.first
         info << "+" if multidevice?
 
         info

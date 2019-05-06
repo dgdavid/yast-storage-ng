@@ -20,9 +20,7 @@
 # find current contact information at www.suse.com.
 
 require "y2partitioner/dialogs/base"
-require "y2partitioner/widgets/btrfs_metadata_raid_level"
-require "y2partitioner/widgets/btrfs_data_raid_level"
-require "y2partitioner/widgets/btrfs_devices_selector"
+require "y2partitioner/widgets/btrfs_devices"
 
 module Y2Partitioner
   module Dialogs
@@ -44,19 +42,7 @@ module Y2Partitioner
 
       # @macro seeDialog
       def contents
-        VBox(
-          Left(
-            HVSquash(
-              HBox(
-                metadata_raid_level_widget,
-                HSpacing(1),
-                data_raid_level_widget
-              )
-            )
-          ),
-          VSpacing(1),
-          btrfs_devices_widget
-        )
+        btrfs_devices_widget
       end
 
     private
@@ -64,19 +50,8 @@ module Y2Partitioner
       # @return [Actions::Controllers::Filesystem]
       attr_reader :controller
 
-      def metadata_raid_level_widget
-        @metadata_raid_level_widget ||= Widgets::BtrfsMetadataRaidLevel.new(controller)
-      end
-
-      def data_raid_level_widget
-        @data_raid_level_widget ||= Widgets::BtrfsDataRaidLevel.new(controller)
-      end
-
-      # Widget for Btrfs options
-      #
-      # @return [Widgets::BtrfsOptions]
       def btrfs_devices_widget
-        @btrfs_devices_widget ||= Widgets::BtrfsDevicesSelector.new(controller)
+        @btrfs_devices_widget ||= Widgets::BtrfsDevices.new(controller)
       end
     end
   end
