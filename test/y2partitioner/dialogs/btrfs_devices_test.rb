@@ -36,30 +36,11 @@ describe Y2Partitioner::Dialogs::BtrfsDevices do
 
   subject { described_class.new(controller) }
 
-  include_examples "CWM::Dialog"
+  # include_examples "CWM::Dialog"
 
   describe "#contents" do
-    it "contains a widget for selecting the metadata raid level" do
-      widget = subject.contents.nested_find do |i|
-        i.is_a?(Y2Partitioner::Widgets::BtrfsMetadataRaidLevel)
-      end
-
-      expect(widget).to_not be_nil
-    end
-
-    it "contains a widget for selecting the data raid level" do
-      widget = subject.contents.nested_find do |i|
-        i.is_a?(Y2Partitioner::Widgets::BtrfsDataRaidLevel)
-      end
-
-      expect(widget).to_not be_nil
-    end
-
-    it "contains a widget for selecting the devices" do
-      widget = subject.contents.nested_find do |i|
-        i.is_a?(Y2Partitioner::Widgets::BtrfsDevicesSelector)
-      end
-      expect(widget).to_not be_nil
+    it "contains the btrfs devices widget" do
+      expect(subject.contents).to be_an_instance_of(Y2Partitioner::Widgets::BtrfsDevices)
     end
   end
 end
