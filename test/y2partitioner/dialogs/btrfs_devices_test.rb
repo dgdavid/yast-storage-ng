@@ -36,11 +36,15 @@ describe Y2Partitioner::Dialogs::BtrfsDevices do
 
   subject { described_class.new(controller) }
 
-  # include_examples "CWM::Dialog"
+  include_examples "CWM::Dialog"
 
   describe "#contents" do
     it "contains the btrfs devices widget" do
-      expect(subject.contents).to be_an_instance_of(Y2Partitioner::Widgets::BtrfsDevices)
+      btrfs_devices_widget = subject.contents.detect do |i|
+        i.is_a?(Y2Partitioner::Widgets::BtrfsDevices)
+      end
+
+      expect(btrfs_devices_widget).to_not be_nil
     end
   end
 end
