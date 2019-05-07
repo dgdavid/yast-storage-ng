@@ -65,11 +65,32 @@ describe Y2Partitioner::Widgets::DescriptionSection::Filesystem do
       expect(subject.value).to match(/UUID:/)
     end
 
+    it "does not include an entry about the metadata raid level" do
+      expect(subject.value).to_not match(/Metadata RAID Level:/)
+    end
+
+    it "does ot include an entry about the data raid level" do
+      expect(subject.value).to_not match(/Data RAID Level:/)
+    end
+
     it "contains (not mounted) if mount point is not active" do
       allow(filesystem).to receive(:mount_point)
         .and_return(double(path: "/", active?: false).as_null_object)
 
       expect(subject.value).to match(/Mount Point: \/ \(not mounted\)/)
+    end
+
+    context "when using a Btrfs filesystem" do
+      before { devicegraph_stub("btrfs_on_disk") }
+      let(:device) { current_graph.find_by_name("/dev/sda") }
+
+      it "includes an entry about the metadata raid level" do
+        expect(subject.value).to match(/Metadata RAID Level:/)
+      end
+
+      it "includes an entry about the data raid level" do
+        expect(subject.value).to match(/Data RAID Level:/)
+      end
     end
   end
 
