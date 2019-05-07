@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-# Copyright (c) [2017] SUSE LLC
+# Copyright (c) [2017-2019] SUSE LLC
 #
 # All Rights Reserved.
 #
@@ -361,9 +361,10 @@ module Y2Partitioner
             "in powers of 2 and multiple of 128 KiB, for example, \"512 KiB\" or \"4 MiB\"")
         end
 
-        # Checks whether a device is availabe to be used as physical volume
+        # Checks whether an available device can be used as physical volume
         #
-        # @return [Boolean] true if the device is available; false otherwise
+        # @param device [Y2Storage::BlkDevice]
+        # @return [Boolean]
         def valid_device?(device)
           if device.is?(:partition)
             valid_partition_for_vg?(device)
@@ -372,25 +373,22 @@ module Y2Partitioner
           end
         end
 
-        # Checks whether a partition is available to be used as physical volume
+        # Checks whether an available partition can be used as physical volume
         #
-        # @note A partition is available when its id is linux, lvm, swap or raid,
-        #   it is not formatted and it does not belong to another device (raid or
-        #   volume group). A partition is also available when it is formated but
-        #   not mounted.
+        # The partition can be used if its id is linux, lvm, swap or raid.
         #
-        # @return [Boolean] true if the partition is available; false otherwise
+        # @param partition [Y2Storage::Partition]
+        # @return [Boolean]
         def valid_partition_for_vg?(partition)
           partition.id.is?(:linux_system)
         end
 
-        # Checks whether a device is available to be used as physical volume
+        # Checks whether an available device can be used as physical volume
         #
-        # @note A device is available when it has not partitions and it is not
-        #   formatted and it does not belong to another device (raid or volume
-        #   group). A device is also available when it is formated but not mounted.
+        # The device can be used if its has a proper type.
         #
-        # @return [Boolean] true if the device is available; false otherwise
+        # @param device [Y2Storage::BlkDevice]
+        # @return [Boolean]
         def valid_device_for_vg?(device)
           device.is?(:disk, :multipath, :bios_raid, :md)
         end

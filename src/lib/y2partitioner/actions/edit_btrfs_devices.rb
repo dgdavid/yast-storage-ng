@@ -30,11 +30,11 @@ Yast.import "Popup"
 
 module Y2Partitioner
   module Actions
-    # Action for editing the devices of a Software RAID
+    # Action for editing the devices of a Btrfs filesystem
     class EditBtrfsDevices < TransactionWizard
       # Constructor
       #
-      # @param md [Y2Storage::Md]
+      # @param md [Y2Storage::Filesystems::Btrfs]
       def initialize(filesystem)
         super()
         textdomain "storage"
@@ -42,16 +42,16 @@ module Y2Partitioner
         @device_sid = filesystem.sid
       end
 
-      # Calls the dialog for editing the devices
+      # Calls the dialog for editing the devices (and metadata/data RAID levels)
       #
-      # @return [Symbol] :finish if the dialog returns :next; dialog result otherwise.
+      # @return [Symbol]
       def devices
         Dialogs::BtrfsDevices.run(controller)
       end
 
     private
 
-      # @return [Controllers::Md]
+      # @return [Controllers::BtrfsDevices]
       attr_reader :controller
 
       alias_method :filesystem, :device
@@ -70,15 +70,16 @@ module Y2Partitioner
         @controller = Controllers::BtrfsDevices.new(filesystem: filesystem, wizard_title: title)
       end
 
+      # Wizard title
+      #
+      # @return [String]
       def title
         format(_("Edit devices of Btrfs %{name}"), name: filesystem.blk_device_basename)
       end
 
-      # Whether it is possible to edit the used devices for a MD RAID
+      # Whether it is possible to edit the used devices
       #
-      # @note An error popup is shown when the devices cannot be edited: the MD RAID
-      #   already exists on disk (see {#committed?}), the MD RAID belongs to a volume
-      #   group (see {#used?}) or the MD RAID contains partitions (see {#partitioned?}).
+      # An error popup is shown when the filesystem already exists on disk.
       #
       # @see TransactionWizard
       #
@@ -94,17 +95,20 @@ module Y2Partitioner
         false
       end
 
+      # Errors that avoid to edit the devices
+      #
+      # @return [Array<String>]
       def errors
         [committed_error].compact
       end
 
-      # Error the MD RAID exists on disk (see {#committed?})
+      # Error the filesystem exists on disk
       #
-      # @return [String, nil] nil if the MD RAID does not exists on disk yet.
+      # @return [String, nil] nil if the filesystem does not exist on disk yet.
       def committed_error
         return nil unless committed?
 
-        # TRANSLATORS: error message, %{name} is replaced by a device name (e.g., /dev/md1)
+        # TRANSLATORS: error message, where %{name} is replaced by a device base name (e.g., sda1)
         format(
           _("The Btrfs %{name} is already created on disk and its used devices\n" \
             "cannot be modified. To modify the used devices, remove the Btrfs\n" \
@@ -113,13 +117,16 @@ module Y2Partitioner
         )
       end
 
-      # Whether the MD RAID is already created on disk
+      # Whether the filesystem is already created on disk
       #
       # @return [Boolean]
       def committed?
         filesystem.exists_in_devicegraph?(system_graph)
       end
 
+      # Devicegraph representing the system status
+      #
+      # @return [Y2Storage::Devicegraph]
       def system_graph
         Y2Partitioner::DeviceGraphs.instance.system
       end

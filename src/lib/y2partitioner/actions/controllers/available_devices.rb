@@ -22,18 +22,44 @@
 module Y2Partitioner
   module Actions
     module Controllers
+      # Mixin offering method to query all available block devices from a devicegraph
+      #
+      # In this context, an available device means that it is not currently being
+      # used by another device (e.g., RAID, LVM VG, etc). In case the device is
+      # directly formatted, it is also considered as available if the filesystem is
+      # not mounted.
       module AvailableDevices
+        # Method to query all available block devices from a devicegraph
+        #
+        # A block can be given to filter the list of available devices.
+        #
+        # @param devicegraph [Y2Storage::Devicegraph]
+        # @yield [Y2Storage::BlkDevice]
+        #
+        # @return [Array<Y2Storage::BlkDevice>]
         def available_devices(devicegraph, &block)
           finder = Finder.new(devicegraph)
 
           finder.available_devices(&block)
         end
 
+        # Helper class to find available devices
         class Finder
+          # Constructor
+          #
+          # @param devicegraph [Y2Storage::Devicegraph]
           def initialize(devicegraph)
             @devicegraph = devicegraph
           end
 
+          # All available devices
+          #
+          # A block can be given to filter the list of available devices.
+          #
+          # @see #available_device?
+          #
+          # @yield [Y2Storage::BlkDevice]
+          # @return [Array<Y2Storage::BlkDevice>]
           def available_devices(&block)
             devices = all_devices.select { |d| available_device?(d) }
 
@@ -44,12 +70,24 @@ module Y2Partitioner
 
         private
 
+          # @return [Controllers::BtrfsDevices]
           attr_reader :devicegraph
 
+          # All block devices
+          #
+          # @return [Array<Y2Storage::BlkDevice>]
           def all_devices
             devicegraph.blk_devices
           end
 
+          # Whether the given device is available
+          #
+          # A device is available when it is not used by another device (e.g., RAID),
+          # its filesystem is not mounted, it is not partitioned and it is not a
+          # zero-sized device.
+          #
+          # @param device [Y2Storage::BlkDevice]
+          # @return [Boolean]
           def available_device?(device)
             !used?(device) &&
               !formatted_and_mounted?(device) &&
@@ -58,7 +96,7 @@ module Y2Partitioner
               !zero_size?(device)
           end
 
-          # Whether the device is already in use (e.g., as LVM PV or raid disk)
+          # Whether the device is already in use (e.g., as LVM PV, as RAID disk, etc)
           #
           # @param device [Y2Storage::BlkDevice]
           # @return [Boolean]
@@ -90,6 +128,10 @@ module Y2Partitioner
             device.is?(:partition) && device.type.is?(:extended)
           end
 
+          # Whether the device is a zero-sized device
+          #
+          # @param device [Y2Storage::BlkDevice]
+          # @return [Boolean]
           def zero_size?(device)
             device.size.zero?
           end

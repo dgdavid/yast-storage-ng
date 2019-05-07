@@ -30,17 +30,27 @@ Yast.import "Popup"
 
 module Y2Partitioner
   module Actions
+    # Action for creating a new Btrfs filesystem (sigle or multidevice)
     class AddBtrfs < TransactionWizard
+      # Constructor
       def initialize
         super
 
         textdomain "storage"
       end
 
+      # Wizard step to select the devices used for creating the Btrfs
+      #
+      # The metadata and data RAID levels can be also selected.
+      #
+      # @see Dialogs::BtrfsDevices
       def devices
         Dialogs::BtrfsDevices.run(controller)
       end
 
+      # Wizard step to select the filesystem options (mount point, subvolumes, snapshtots, etc)
+      #
+      # @see Dialogs::BtrfsOptions
       def options
         fs_controller = Controllers::Filesystem.new(controller.filesystem, title)
 
@@ -49,6 +59,7 @@ module Y2Partitioner
 
     protected
 
+      # @return Controllers::BtrfsDevices
       attr_reader :controller
 
       # @see TransactionWizard
@@ -66,7 +77,11 @@ module Y2Partitioner
         @controller = Controllers::BtrfsDevices.new(wizard_title: title)
       end
 
+      # Wizard title
+      #
+      # @return [String]
       def title
+        # TRANSLATORS: wizard title when creating a new Btrfs filesystem.
         _("Add Btrfs")
       end
 
@@ -75,6 +90,7 @@ module Y2Partitioner
         return true if controller.available_devices.any?
 
         Yast::Popup.Error(
+          # TRANSLATORS: error message
           _("There are not enough suitable unused devices to create a Btrfs.")
         )
         false

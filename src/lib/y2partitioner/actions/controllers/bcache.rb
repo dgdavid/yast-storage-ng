@@ -151,6 +151,10 @@ module Y2Partitioner
           valid_device_type?(device) && !device_belong_to_bcache?(device)
         end
 
+        # Whether the device has a proper type to be used as backing or caching device
+        #
+        # @param device [Y2Storage::BlkDevice]
+        # @return [Boolean]
         def valid_device_type?(device)
           device.is?(:disk, :multipath, :dasd, :stray, :partition, :lvm_lv)
         end

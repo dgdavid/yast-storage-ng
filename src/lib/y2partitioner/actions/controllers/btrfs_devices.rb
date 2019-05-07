@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-# Copyright (c) [2018] SUSE LLC
+# Copyright (c) [2019] SUSE LLC
 #
 # All Rights Reserved.
 #
@@ -29,25 +29,25 @@ require "y2partitioner/actions/controllers/available_devices"
 module Y2Partitioner
   module Actions
     module Controllers
-      # This class stores information about an LVM volume group being created or
-      # modified and takes care of updating the devicegraph when needed.
+      # Controller class to deal with all stuff related to adding or removing devices to
+      # a Btrfs filesystem
       class BtrfsDevices
         include Yast::I18n
 
         include AvailableDevices
 
+        # @return [Y2Storage::Filesystems::Btrfs]
         attr_reader :filesystem
 
+        # @return [String]
         attr_reader :wizard_title
 
         # Constructor
         #
-        # @note When the volume group is not given, a new LvmVg object will be created in
-        #   the devicegraph right away.
+        # If the filesystem is not given, then a new one is created when the first device is selected.
         #
-        # @see #initialize_action
-        #
-        # @param vg [Y2Storage::LvmVg] a volume group to be modified
+        # @param filesystem [Y2Storage::Filesystems::Btrfs]
+        # @param wizard_title [String]
         def initialize(filesystem: nil, wizard_title: "")
           textdomain "storage"
 
@@ -60,34 +60,39 @@ module Y2Partitioner
           UIState.instance.select_row(filesystem) if filesystem
         end
 
+        # Metadata RAID level for the filesystem
+        #
+        # @return [Y2Storage::BtrfsRaidLevel]
         def metadata_raid_level
-          return @metadata_raid_level unless filesystem
-
-          filesystem.metadata_raid_level
+          raid_level(:metadata)
         end
 
-        def metadata_raid_level=(value)
-          if filesystem
-            filesystem.metadata_raid_level = value
-          else
-            @metadata_raid_level = value
-          end
-        end
-
+        # Data RAID level for the filesystem
+        #
+        # @return [Y2Storage::BtrfsRaidLevel]
         def data_raid_level
-          return @data_raid_level unless filesystem
-
-          filesystem.data_raid_level
+          raid_level(:data)
         end
 
+        # Sets the metadata RAID level for the filesystem
+        #
+        # @param value [Y2Storage::BtrfsRaidLevel]
+        def metadata_raid_level=(value)
+          save_raid_level(:metadata, value)
+        end
+
+        # Sets the data RAID level for the filesystem
+        #
+        # @param value [Y2Storage::BtrfsRaidLevel]
         def data_raid_level=(value)
-          if filesystem
-            filesystem.data_raid_level = value
-          else
-            @data_raid_level = value
-          end
+          save_raid_level(:data, value)
         end
 
+        # All possible RAID levels
+        #
+        # Btrfs requires a minimum number of devices for some RAID levels
+        #
+        # @return [Array<Y2Storage::BtrfsRaidLevel>]
         def raid_levels
           [
             Y2Storage::BtrfsRaidLevel::DEFAULT,
@@ -99,6 +104,10 @@ module Y2Partitioner
           ]
         end
 
+        # Allowed RAID levels depending on the selected devices
+        #
+        # @param data [:metadata, :data]
+        # @return [Array<Y2Storage::BtrfsRaidLevel>]
         def allowed_raid_levels(data)
           raid_levels = [Y2Storage::BtrfsRaidLevel::DEFAULT]
 
@@ -111,21 +120,16 @@ module Y2Partitioner
           raid_levels - forbidden_raid_levels
         end
 
-        def forbidden_raid_levels
-          [Y2Storage::BtrfsRaidLevel::RAID5, Y2Storage::BtrfsRaidLevel::RAID6]
-        end
-
-        # Devices that can be selected to become physical volume of a volume group
+        # Devices that can be selected for being used by the Btrfs
         #
-        # @note A physical volume could be created using a partition, disk, multipath,
-        #   DM Raid or MD Raid. Dasd devices cannot be used.
+        # @see AvailableDevices
         #
         # @return [Array<Y2Storage::BlkDevice>]
         def available_devices
           super(current_graph) { |d| valid_device?(d) }
         end
 
-        # Devices that are already used as physical volume by the volume group
+        # Devices used by the Btrfs
         #
         # @return [Array<Y2Storage::BlkDevice>]
         def selected_devices
@@ -134,13 +138,10 @@ module Y2Partitioner
           filesystem.plain_blk_devices
         end
 
-        # Adds a device as physical volume of the volume group
+        # Adds a device to the Btrfs
         #
-        # It removes any previous children (like filesystems) from the device and
-        # adapts the partition id if possible.
-        #
-        # @raise [ArgumentError] if the device is already an physcial volume of the
-        #   volume group.
+        # If the filesystem does not exist, a new one is created when adding the first device.
+        # Any previous children (like filesystems) is removed from the device.
         #
         # @param device [Y2Storage::BlkDevice]
         def add_device(device)
@@ -154,9 +155,7 @@ module Y2Partitioner
           end
         end
 
-        # Removes a device from the physical volumes of the volume group
-        #
-        # @raise [ArgumentError] if the device is not a physical volume of the volume group
+        # Removes a device from the Btrfs
         #
         # @param device [Y2Storage::BlkDevice]
         def remove_device(device)
@@ -167,18 +166,59 @@ module Y2Partitioner
 
       private
 
-        def current_graph
-          DeviceGraphs.instance.current
+        # Helper method to get the RAID level (metadata or data)
+        #
+        # @param data [:metadata, :data]
+        # @return [Y2Storage::BtrfsRaidLevel]
+        def raid_level(data)
+          # When the filesystem does not exist yet, the value is taken from the class attribute.
+          # Otherwise, the filesystem value is taken.
+          return instance_variable_get("@#{data}_raid_level") unless filesystem
+
+          filesystem.send("#{data}_raid_level")
         end
 
+        # Helper method to set the RAID level (metadata or data)
+        #
+        # @param data [:metadata, :data]
+        # @param value [Y2Storage::BtrfsRaidLevel]
+        def save_raid_level(data, value)
+          if filesystem
+            filesystem.send("#{data}_raid_level=", value)
+          else
+            instance_variable_set("@#{data}_raid_level", value)
+          end
+        end
+
+        # Forbidden RAID levels
+        #
+        # RAID5 and RAID6 are not offered because Btrfs does not fully support them.
+        #
+        # @return [Array<Y2Storage::BtrfsRaidLevel>]
+        def forbidden_raid_levels
+          [Y2Storage::BtrfsRaidLevel::RAID5, Y2Storage::BtrfsRaidLevel::RAID6]
+        end
+
+        # Whether the available device is valid for being used by the Btrfs
+        #
+        # @param device [Y2Storage::BlkDevice]
+        # @return [Boolean]
         def valid_device?(device)
           !device.is?(:encryption) && !selected_device?(device)
         end
 
+        # Whether the device is already selected for being used by the Btrfs
+        #
+        # @param device [Y2Storage::BlkDevice]
+        # @return [Boolean]
         def selected_device?(device)
           selected_devices.include?(device)
         end
 
+        # Creates a Btrfs filesystem over the given device
+        #
+        # @param device [Y2Storage::BlkDevice]
+        # @return [Y2Storage::Filesystems::Btrfs]
         def create_filesystem(device)
           filesystem = device.create_filesystem(Y2Storage::Filesystems::Type::BTRFS)
           filesystem.metadata_raid_level = @metadata_raid_level
@@ -187,6 +227,13 @@ module Y2Partitioner
           UIState.instance.select_row(filesystem)
 
           @filesystem = filesystem
+        end
+
+        # Current devicegraph
+        #
+        # @return [Y2Storage::Devicegraph]
+        def current_graph
+          DeviceGraphs.instance.current
         end
       end
     end
